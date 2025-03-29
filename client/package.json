@@ -1,0 +1,20 @@
+{
+  "name": "rsps-client",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "webpack --mode production",
+    "start": "webpack-dev-server --mode development --open"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^6.6.1",
+    "@babylonjs/gui": "^6.6.1"
+  },
+  "devDependencies": {
+    "html-webpack-plugin": "^5.5.0",
+    "ts-loader": "^9.4.2",
+    "typescript": "^5.0.4",
+    "webpack": "^5.80.0",
+    "webpack-cli": "^5.0.2",
+    "webpack-dev-server": "^4.15.0"
+  }
+} 

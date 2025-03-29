@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  database:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: rsps_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  
+  server:
+    build:
+      context: ./server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+    environment:
+      DB_URL: jdbc:postgresql://database:5432/rsps_dev
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+  
+  client:
+    build:
+      context: ./client
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+
+volumes:
+  pgdata: 
