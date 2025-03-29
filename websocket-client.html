@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RuneScape WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .connect-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        #log {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            font-family: monospace;
+        }
+        
+        .success {
+            color: green;
+        }
+        
+        .error {
+            color: red;
+        }
+        
+        .command {
+            color: blue;
+        }
+        
+        .received {
+            color: purple;
+        }
+        
+        .presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RuneScape WebSocket Test Client</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Connection</h2>
+            <div class="connect-box">
+                <input type="text" id="serverUrl" value="ws://localhost:8080/game" placeholder="WebSocket URL">
+                <button id="connectBtn">Connect</button>
+                <button id="disconnectBtn" disabled>Disconnect</button>
+            </div>
+            <div id="status">Status: Disconnected</div>
+        </div>
+        
+        <div class="card">
+            <h2>Send Command</h2>
+            <div class="connect-box">
+                <input type="text" id="messageInput" placeholder="Enter command to send">
+                <button id="sendBtn" disabled>Send</button>
+            </div>
+            
+            <h3>Preset Commands</h3>
+            <div class="presets">
+                <button class="preset-btn" data-message="REGISTER:myuser:mypassword">Register User</button>
+                <button class="preset-btn" data-message="LOGIN:myuser:mypassword">Login User</button>
+                <button class="preset-btn" data-message="MOVE:3230:3230">Move Player</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Message Log</h2>
+            <button id="clearLogBtn">Clear Log</button>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const serverUrlInput = document.getElementById('serverUrl');
+        const messageInput = document.getElementById('messageInput');
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        
+        // Connect to WebSocket server
+        connectBtn.addEventListener('click', () => {
+            const serverUrl = serverUrlInput.value;
+            
+            try {
+                socket = new WebSocket(serverUrl);
+                
+                socket.onopen = (event) => {
+                    log('Connection established', 'success');
+                    statusDiv.textContent = 'Status: Connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendBtn.disabled = false;
+                    presetBtns.forEach(btn => btn.disabled = false);
+                };
+                
+                socket.onmessage = (event) => {
+                    log(`Received: ${event.data}`, 'received');
+                };
+                
+                socket.onerror = (error) => {
+                    log('WebSocket Error', 'error');
+                    console.error('WebSocket Error:', error);
+                };
+                
+                socket.onclose = (event) => {
+                    log('Connection closed', 'error');
+                    statusDiv.textContent = 'Status: Disconnected';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    sendBtn.disabled = true;
+                    presetBtns.forEach(btn => btn.disabled = true);
+                };
+            } catch (error) {
+                log(`Failed to connect: ${error.message}`, 'error');
+            }
+        });
+        
+        // Disconnect from server
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        });
+        
+        // Send message
+        sendBtn.addEventListener('click', sendMessage);
+        
+        // Send message on Enter key
+        messageInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Handle preset command buttons
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                messageInput.value = btn.dataset.message;
+            });
+            // Initially disable them
+            btn.disabled = true;
+        });
+        
+        // Clear log
+        clearLogBtn.addEventListener('click', () => {
+            logDiv.innerHTML = '';
+        });
+        
+        // Send message function
+        function sendMessage() {
+            const message = messageInput.value;
+            if (message && socket) {
+                socket.send(message);
+                log(`Sent: ${message}`, 'command');
+                messageInput.value = '';
+            }
+        }
+        
+        // Log messages to the log div
+        function log(message, type) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            messageElement.classList.add(type);
+            logDiv.appendChild(messageElement);
+            logDiv.scrollTop = logDiv.scrollHeight; // Auto-scroll to bottom
+        }
+    </script>
+</body>
+</html> 

@@ -81,6 +81,26 @@ class GameEngine {
     }
     
     /**
+     * Gets a player by session ID
+     */
+    fun getPlayer(sessionId: String): Player? {
+        return players[sessionId]
+    }
+    
+    /**
+     * Replaces a player in the game engine with an updated player (e.g. after loading from database)
+     */
+    fun replacePlayer(oldPlayer: Player, newPlayer: Player) {
+        // Remove the old player
+        removePlayer(oldPlayer.sessionId)
+        
+        // Add the new player
+        addPlayer(newPlayer)
+        
+        logger.info("Player replaced: ${oldPlayer.sessionId} -> ${newPlayer.sessionId}")
+    }
+    
+    /**
      * The main game tick logic - processes one frame of game state
      */
     private suspend fun tick() {
