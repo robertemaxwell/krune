@@ -14,6 +14,7 @@
 11. [Next Steps & Roadmap](#next-steps--roadmap)
 12. [Contributing](#contributing)
 13. [License](#license)
+14. [CI/CD Pipeline](#ci-cd-pipeline)
 
 ## Overview
 
@@ -598,6 +599,41 @@ This project is not affiliated with or endorsed by Jagex Ltd. It's a fan-made re
 You may release the project under an open-source license (e.g., MIT, GPL, etc.), but ensure you comply with any relevant intellectual property considerations for game assets, names, or trademarks. Check your local laws and Jagex's stance on private servers.
 
 (Replace this section with the actual open-source license text you wish to use.)
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment. The pipeline includes:
+
+### Automated Workflow
+
+1. **Build and Test Server**
+   - Builds the Java/Kotlin server using Gradle
+   - Runs server tests
+   - Saves build artifacts
+
+2. **Build and Test Client**
+   - Installs Node.js dependencies
+   - Builds the client application
+   - Runs client tests
+   - Saves build artifacts
+
+3. **Docker Build**
+   - Builds Docker images for both server and client
+   - Pushes images to DockerHub registry (on main branch only)
+
+4. **Deployment** (configured when ready)
+   - Automates deployment to chosen environment
+
+### Setup Requirements
+
+For the CI/CD pipeline to work properly, add these secrets to your GitHub repository:
+
+- `DOCKER_HUB_USERNAME`: Your Docker Hub username
+- `DOCKER_HUB_TOKEN`: Your Docker Hub access token
+
+### Manual Triggers
+
+You can manually trigger the workflow from the Actions tab in GitHub.
 
 ---
 

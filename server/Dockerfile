@@ -1,10 +1,12 @@
-FROM gradle:7.5.1-jdk17 as builder
-WORKDIR /app
-COPY . .
-RUN gradle clean build -x test
+FROM amazoncorretto:17-alpine
 
-FROM openjdk:17-jdk-slim
 WORKDIR /app
-COPY --from=builder /app/build/libs/*.jar server.jar
+
+# Copy the JAR file
+COPY build/libs/*.jar app.jar
+
+# Expose the server port
 EXPOSE 8080
-CMD ["java", "-jar", "server.jar"] 
+
+# Set entrypoint
+ENTRYPOINT ["java", "-jar", "app.jar"] 
