@@ -20,6 +20,19 @@ object Players : IntIdTable() {
     val lastLogin = long("last_login").nullable()
 }
 
+// Player appearance table
+object PlayerAppearance : IntIdTable() {
+    val playerId = reference("player_id", Players).uniqueIndex()
+    val gender = integer("gender").default(0)  // 0 for male, 1 for female
+    val headModel = integer("head_model").default(0)
+    val bodyModel = integer("body_model").default(18)
+    val legModel = integer("leg_model").default(26)
+    val feetModel = integer("feet_model").default(36)
+    val handModel = integer("hand_model").default(33)
+    val hairColor = integer("hair_color").default(0)
+    val bodyColor = integer("body_color").default(0)
+}
+
 // Player skills table
 object PlayerSkills : IntIdTable() {
     val playerId = reference("player_id", Players)
@@ -36,6 +49,13 @@ object PlayerInventory : IntIdTable() {
     val amount = integer("amount")
 }
 
+// Player equipment table
+object PlayerEquipment : IntIdTable() {
+    val playerId = reference("player_id", Players)
+    val slot = integer("slot")
+    val itemId = integer("item_id")
+}
+
 // Player entity class
 class PlayerEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<PlayerEntity>(Players)
@@ -48,6 +68,21 @@ class PlayerEntity(id: EntityID<Int>) : IntEntity(id) {
     var health by Players.health
     var createdAt by Players.createdAt
     var lastLogin by Players.lastLogin
+}
+
+// Player appearance entity class
+class PlayerAppearanceEntity(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<PlayerAppearanceEntity>(PlayerAppearance)
+    
+    var player by PlayerEntity referencedOn PlayerAppearance.playerId
+    var gender by PlayerAppearance.gender
+    var headModel by PlayerAppearance.headModel
+    var bodyModel by PlayerAppearance.bodyModel
+    var legModel by PlayerAppearance.legModel
+    var feetModel by PlayerAppearance.feetModel
+    var handModel by PlayerAppearance.handModel
+    var hairColor by PlayerAppearance.hairColor
+    var bodyColor by PlayerAppearance.bodyColor
 }
 
 // Player skill entity class
@@ -70,6 +105,15 @@ class PlayerInventoryItemEntity(id: EntityID<Int>) : IntEntity(id) {
     var amount by PlayerInventory.amount
 }
 
+// Player equipment item entity class
+class PlayerEquipmentItemEntity(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<PlayerEquipmentItemEntity>(PlayerEquipment)
+    
+    var player by PlayerEntity referencedOn PlayerEquipment.playerId
+    var slot by PlayerEquipment.slot
+    var itemId by PlayerEquipment.itemId
+}
+
 fun initDatabase() {
     // Read database configuration from environment variables or use defaults
     val dbUrl = System.getenv("DB_URL") ?: "jdbc:postgresql://localhost:5434/rsps_dev"
@@ -87,8 +131,10 @@ fun initDatabase() {
     transaction {
         SchemaUtils.create(
             Players,
+            PlayerAppearance,
             PlayerSkills,
-            PlayerInventory
+            PlayerInventory,
+            PlayerEquipment
         )
     }
     

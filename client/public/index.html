@@ -1,174 +1,384 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>RuneScape 317 in the Browser</title>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: 'Arial', sans-serif;
-      background-color: #000;
-    }
-    
-    #gameCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-    }
-    
-    #loading-screen {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #000;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-    }
-    
-    #loading-screen h1 {
-      font-size: 2.5em;
-      margin-bottom: 20px;
-      color: #FFD700;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    }
-    
-    #loading-bar {
-      width: 300px;
-      height: 20px;
-      background-color: #333;
-      border: 2px solid #555;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    
-    #loading-progress {
-      width: 0%;
-      height: 100%;
-      background-color: #4CAF50;
-      transition: width 0.3s;
-    }
-    
-    #loading-text {
-      margin-top: 10px;
-      font-size: 14px;
-    }
-    
-    #game-ui {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      z-index: 10;
-      color: white;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
-      pointer-events: none;
-    }
-    
-    #connection-status {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 10;
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-    
-    .connected {
-      background-color: rgba(0, 128, 0, 0.6);
-      color: white;
-    }
-    
-    .disconnected {
-      background-color: rgba(255, 0, 0, 0.6);
-      color: white;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RuneScape 317 Style MMO</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #1a1a1a;
+            color: #eaeaea;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #loading-screen h1 {
+            color: #ffcc00;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        #loading-bar {
+            width: 300px;
+            height: 20px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #loading-progress {
+            height: 100%;
+            width: 0;
+            background-color: #ffcc00;
+            transition: width 0.5s ease;
+        }
+
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            background-color: #333;
+            display: block;
+        }
+
+        .status-bar {
+            background-color: #2a2a2a;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+        }
+
+        #connection-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .connected {
+            background-color: #2e7d32;
+            color: white;
+        }
+
+        .disconnected {
+            background-color: #c62828;
+            color: white;
+        }
+
+        /* Login and Registration Forms */
+        #login-form, #register-form {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(42, 42, 42, 0.9);
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 300px;
+        }
+
+        #register-form {
+            display: none;
+        }
+
+        .form-title {
+            text-align: center;
+            color: #ffcc00;
+            margin-top: 0;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ddd;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #eaeaea;
+            border-radius: 3px;
+        }
+
+        .form-button {
+            width: 100%;
+            padding: 10px;
+            background-color: #5d4037;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .form-button:hover {
+            background-color: #6d4c41;
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .form-footer a {
+            color: #ffcc00;
+            text-decoration: none;
+        }
+
+        /* Game UI */
+        #game-ui {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .ui-element {
+            pointer-events: auto;
+        }
+
+        .player-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(42, 42, 42, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            min-width: 150px;
+        }
+
+        .player-info h3 {
+            margin: 0 0 10px 0;
+            color: #ffcc00;
+        }
+
+        .chat-window {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 400px;
+            height: 200px;
+            background-color: rgba(42, 42, 42, 0.7);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 0.9em;
+        }
+
+        .chat-message {
+            margin-bottom: 5px;
+        }
+
+        .chat-message .sender {
+            font-weight: bold;
+        }
+
+        .chat-message.system {
+            color: #8bc34a;
+        }
+
+        .chat-message.error {
+            color: #ff5252;
+        }
+
+        .chat-message.chat {
+            color: #eaeaea;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 5px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #eaeaea;
+            border-radius: 3px;
+        }
+
+        .action-buttons {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .action-button {
+            padding: 8px 12px;
+            background-color: #5d4037;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .action-button:hover {
+            background-color: #6d4c41;
+        }
+    </style>
 </head>
 <body>
-  <!-- Loading screen -->
-  <div id="loading-screen">
-    <h1>RuneScape 317</h1>
-    <div id="loading-bar">
-      <div id="loading-progress"></div>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <h1>RuneScape 317 Style MMO</h1>
+        <div id="loading-bar">
+            <div id="loading-progress"></div>
+        </div>
+        <p id="loading-text">Loading game assets...</p>
     </div>
-    <div id="loading-text">Loading game assets...</div>
-  </div>
-  
-  <!-- Main game canvas -->
-  <canvas id="gameCanvas"></canvas>
-  
-  <!-- Game UI -->
-  <div id="game-ui">
-    <div>Use WASD to move</div>
-    <div>Click to interact</div>
-  </div>
-  
-  <!-- Connection status indicator -->
-  <div id="connection-status" class="disconnected">Offline</div>
-  
-  <!-- Script to handle loading screen -->
-  <script>
-    // Simulate loading progress
-    let progress = 0;
-    const loadingProgress = document.getElementById('loading-progress');
-    const loadingText = document.getElementById('loading-text');
-    const loadingScreen = document.getElementById('loading-screen');
-    const connectionStatus = document.getElementById('connection-status');
-    
-    const interval = setInterval(() => {
-      progress += Math.random() * 10;
-      if (progress > 100) progress = 100;
-      loadingProgress.style.width = progress + '%';
-      
-      if (progress < 30) {
-        loadingText.textContent = 'Loading game assets...';
-      } else if (progress < 60) {
-        loadingText.textContent = 'Initializing 3D engine...';
-      } else if (progress < 90) {
-        loadingText.textContent = 'Connecting to server...';
-      } else {
-        loadingText.textContent = 'Entering game world...';
-      }
-      
-      if (progress === 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          loadingScreen.style.opacity = '0';
-          loadingScreen.style.transition = 'opacity 1s ease-in-out';
-          setTimeout(() => {
-            loadingScreen.style.display = 'none';
-          }, 1000);
-        }, 500);
-      }
-    }, 200);
-    
-    // Update connection status (will be controlled by actual WebSocket later)
-    window.addEventListener('DOMContentLoaded', () => {
-      // This will be updated by the actual WebSocket connection
-      // Just for visual purposes in this initial implementation
-      setTimeout(() => {
-        connectionStatus.className = 'connected';
-        connectionStatus.textContent = 'Connected';
-      }, 3000);
-    });
-  </script>
+
+    <div class="game-container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span>RuneScape 317 Style MMO</span>
+            <span id="connection-status" class="disconnected">Disconnected</span>
+        </div>
+
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Login Form -->
+        <form id="login-form">
+            <h2 class="form-title">Login</h2>
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="form-button">Login</button>
+            <div class="form-footer">
+                <p>Don't have an account? <a href="#" id="register-link">Register</a></p>
+            </div>
+        </form>
+
+        <!-- Registration Form -->
+        <form id="register-form">
+            <h2 class="form-title">Register</h2>
+            <div class="input-group">
+                <label for="reg-username">Username (3-12 characters)</label>
+                <input type="text" id="reg-username" name="reg-username" required minlength="3" maxlength="12">
+            </div>
+            <div class="input-group">
+                <label for="reg-password">Password (5+ characters)</label>
+                <input type="password" id="reg-password" name="reg-password" required minlength="5">
+            </div>
+            <div class="input-group">
+                <label for="reg-password-confirm">Confirm Password</label>
+                <input type="password" id="reg-password-confirm" name="reg-password-confirm" required>
+            </div>
+            <button type="submit" class="form-button">Register</button>
+            <div class="form-footer">
+                <p>Already have an account? <a href="#" id="login-link">Login</a></p>
+            </div>
+        </form>
+
+        <!-- Game UI -->
+        <div id="game-ui">
+            <!-- Player Info -->
+            <div class="player-info ui-element">
+                <h3>Player Info</h3>
+                <p>Name: <span id="player-name">Unknown</span></p>
+                <p>Health: <span id="player-health">100</span></p>
+                <button id="run-toggle" class="form-button">Run</button>
+            </div>
+
+            <!-- Chat Window -->
+            <div class="chat-window ui-element">
+                <div id="chat-log">
+                    <!-- Chat messages will be added here dynamically -->
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="chat-input" placeholder="Type your message...">
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons ui-element">
+                <button id="logout-button" class="action-button">Logout</button>
+                <button id="inventory-button" class="action-button">Inventory</button>
+                <button id="skills-button" class="action-button">Skills</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+    <script>
+        // Simulate loading progress
+        window.addEventListener('DOMContentLoaded', function() {
+            const loadingProgress = document.getElementById('loading-progress');
+            const loadingText = document.getElementById('loading-text');
+            const loadingScreen = document.getElementById('loading-screen');
+            
+            let progress = 0;
+            const loadingInterval = setInterval(function() {
+                progress += Math.random() * 10;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(loadingInterval);
+                    
+                    loadingText.textContent = 'Ready!';
+                    
+                    // Hide loading screen after a short delay
+                    setTimeout(function() {
+                        loadingScreen.style.display = 'none';
+                    }, 500);
+                }
+                
+                loadingProgress.style.width = progress + '%';
+                loadingText.textContent = 'Loading game assets... ' + Math.floor(progress) + '%';
+            }, 200);
+        });
+    </script>
 </body>
 </html> 

@@ -20,10 +20,11 @@ class PlayerRepository {
         return try {
             transaction {
                 val passwordHash = hashPassword(password)
+                val creationTime = System.currentTimeMillis()
                 PlayerEntity.new {
                     this.username = username
                     this.passwordHash = passwordHash
-                    this.createdAt = System.currentTimeMillis()
+                    this.createdAt = creationTime
                 }
             }
         } catch (e: Exception) {
@@ -86,12 +87,20 @@ class PlayerRepository {
                 
                 // Ensure player has this entity's ID for future updates
                 player.id = entity.id.value
+                player.lastLoginTime = entity.lastLogin ?: 0
+                player.creationTime = entity.createdAt
+                
+                // Save appearance
+                savePlayerAppearance(player)
                 
                 // Save skills
                 savePlayerSkills(player)
                 
                 // Save inventory
                 savePlayerInventory(player)
+                
+                // Save equipment
+                savePlayerEquipment(player)
                 
                 true
             }
@@ -120,6 +129,11 @@ class PlayerRepository {
                 player.y = entity.y
                 player.z = entity.z
                 player.health = entity.health
+                player.lastLoginTime = entity.lastLogin ?: 0
+                player.creationTime = entity.createdAt
+                
+                // Load appearance
+                loadPlayerAppearance(player)
                 
                 // Load skills
                 loadPlayerSkills(player)
@@ -127,11 +141,66 @@ class PlayerRepository {
                 // Load inventory
                 loadPlayerInventory(player)
                 
+                // Load equipment
+                loadPlayerEquipment(player)
+                
                 player
             }
         } catch (e: Exception) {
             logger.error("Failed to load player: ${e.message}", e)
             null
+        }
+    }
+    
+    /**
+     * Saves player appearance to the database
+     */
+    private fun savePlayerAppearance(player: Player) {
+        transaction {
+            val playerId = player.id ?: return@transaction
+            
+            // Get existing appearance or create new
+            val existingAppearance = PlayerAppearanceEntity.find { 
+                PlayerAppearance.playerId eq playerId 
+            }.firstOrNull()
+            
+            val appearanceEntity = existingAppearance ?: PlayerAppearanceEntity.new {
+                this.player = PlayerEntity[playerId]
+            }
+            
+            // Update appearance data
+            appearanceEntity.gender = player.gender
+            appearanceEntity.headModel = player.headModel
+            appearanceEntity.bodyModel = player.bodyModel
+            appearanceEntity.legModel = player.legModel
+            appearanceEntity.feetModel = player.feetModel
+            appearanceEntity.handModel = player.handModel
+            appearanceEntity.hairColor = player.hairColor
+            appearanceEntity.bodyColor = player.bodyColor
+        }
+    }
+    
+    /**
+     * Loads player appearance from the database
+     */
+    private fun loadPlayerAppearance(player: Player) {
+        transaction {
+            val playerId = player.id ?: return@transaction
+            
+            // Load appearance from database
+            val appearanceEntity = PlayerAppearanceEntity.find { 
+                PlayerAppearance.playerId eq playerId 
+            }.firstOrNull() ?: return@transaction
+            
+            // Set player appearance properties
+            player.gender = appearanceEntity.gender
+            player.headModel = appearanceEntity.headModel
+            player.bodyModel = appearanceEntity.bodyModel
+            player.legModel = appearanceEntity.legModel
+            player.feetModel = appearanceEntity.feetModel
+            player.handModel = appearanceEntity.handModel
+            player.hairColor = appearanceEntity.hairColor
+            player.bodyColor = appearanceEntity.bodyColor
         }
     }
     
@@ -237,6 +306,60 @@ class PlayerRepository {
                         amount = entity.amount
                     )
                 }
+            }
+        }
+    }
+    
+    /**
+     * Saves player equipment to the database
+     */
+    private fun savePlayerEquipment(player: Player) {
+        transaction {
+            val playerId = player.id ?: return@transaction
+            
+            // Get existing equipment items
+            val existingItems = PlayerEquipmentItemEntity.find { 
+                PlayerEquipment.playerId eq playerId 
+            }.associateBy { it.slot }
+            
+            // Update or create equipment items
+            for ((slot, item) in player.equipment) {
+                val itemEntity = existingItems[slot] ?: PlayerEquipmentItemEntity.new {
+                    this.player = PlayerEntity[playerId]
+                    this.slot = slot
+                    this.itemId = item.itemId
+                }
+                
+                itemEntity.itemId = item.itemId
+            }
+            
+            // Delete equipment items that are no longer equipped
+            existingItems.forEach { (slot, entity) ->
+                if (!player.equipment.containsKey(slot)) {
+                    entity.delete()
+                }
+            }
+        }
+    }
+    
+    /**
+     * Loads player equipment from the database
+     */
+    private fun loadPlayerEquipment(player: Player) {
+        transaction {
+            val playerId = player.id ?: return@transaction
+            
+            // Clear equipment
+            player.equipment.clear()
+            
+            // Load equipment items from database
+            PlayerEquipmentItemEntity.find { 
+                PlayerEquipment.playerId eq playerId 
+            }.forEach { entity ->
+                player.equipment[entity.slot] = EquipmentItem(
+                    itemId = entity.itemId,
+                    slot = entity.slot
+                )
             }
         }
     }

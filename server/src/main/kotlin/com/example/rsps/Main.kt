@@ -59,71 +59,8 @@ fun main() {
                             val message = frame.readText()
                             logger.debug("Received from $sessionId: $message")
                             
-                            // Handle login requests
-                            if (message.startsWith("LOGIN:")) {
-                                val parts = message.substringAfter("LOGIN:").split(":")
-                                if (parts.size >= 2) {
-                                    val username = parts[0]
-                                    val password = parts[1]
-                                    
-                                    // Authenticate player
-                                    val entity = playerRepository.authenticatePlayer(username, password)
-                                    if (entity != null) {
-                                        // Load player data from database
-                                        val dbPlayer = playerRepository.loadPlayer(entity.id.value)
-                                        if (dbPlayer != null) {
-                                            // Update session info
-                                            dbPlayer.attachSession(sessionId, this)
-                                            
-                                            // Replace player in game engine
-                                            gameEngine.replacePlayer(player, dbPlayer)
-                                            
-                                            // Send success message
-                                            send(Frame.Text("LOGIN_SUCCESS:${entity.id.value}:$username"))
-                                            logger.info("Player $username logged in")
-                                        } else {
-                                            send(Frame.Text("LOGIN_FAILED:Could not load player data"))
-                                        }
-                                    } else {
-                                        send(Frame.Text("LOGIN_FAILED:Invalid username or password"))
-                                    }
-                                }
-                            } 
-                            // Handle registration requests
-                            else if (message.startsWith("REGISTER:")) {
-                                val parts = message.substringAfter("REGISTER:").split(":")
-                                if (parts.size >= 2) {
-                                    val username = parts[0]
-                                    val password = parts[1]
-                                    
-                                    // Check if username exists
-                                    val existing = playerRepository.findPlayerByUsername(username)
-                                    if (existing != null) {
-                                        send(Frame.Text("REGISTER_FAILED:Username already exists"))
-                                    } else {
-                                        // Create new player
-                                        val entity = playerRepository.createPlayer(username, password)
-                                        if (entity != null) {
-                                            // Set player data
-                                            player.id = entity.id.value
-                                            player.username = username
-                                            
-                                            // Save to database
-                                            playerRepository.savePlayer(player)
-                                            
-                                            // Send success message
-                                            send(Frame.Text("REGISTER_SUCCESS:${entity.id.value}:$username"))
-                                            logger.info("New player registered: $username")
-                                        } else {
-                                            send(Frame.Text("REGISTER_FAILED:Registration failed"))
-                                        }
-                                    }
-                                }
-                            }
-                            // Let player handle gameplay messages
-                            else {
-                                player.handleMessage(message)
-                            }
+                            // Handle different message types
+                            handleMessage(message, player, gameEngine, playerRepository)
                         }
                     }
                 } catch (e: Exception) {
@@ -142,7 +79,144 @@ fun main() {
                 }
             }
 
-            // You can add standard REST endpoints here if needed (e.g. for login, account creation)
+            // REST endpoint for player status (optional)
+            get("/status") {
+                // This would return server status information
+                // Implementation omitted for brevity
+            }
         }
     }.start(wait = true)
+}
+
+/**
+ * Handle different message types from client
+ */
+private suspend fun DefaultWebSocketServerSession.handleMessage(
+    message: String,
+    player: Player,
+    gameEngine: GameEngine,
+    playerRepository: PlayerRepository
+) {
+    val logger = LoggerFactory.getLogger("com.example.rsps.MessageHandler")
+    
+    when {
+        // Handle login requests
+        message.startsWith("LOGIN:") -> {
+            val parts = message.substringAfter("LOGIN:").split(":")
+            if (parts.size >= 2) {
+                val username = parts[0]
+                val password = parts[1]
+                
+                // Check if player is already logged in
+                val existingPlayer = gameEngine.getPlayerByUsername(username)
+                if (existingPlayer != null) {
+                    send(Frame.Text("LOGIN_FAILED:Already logged in"))
+                    return
+                }
+                
+                // Authenticate player
+                val entity = playerRepository.authenticatePlayer(username, password)
+                if (entity != null) {
+                    // Load player data from database
+                    val dbPlayer = playerRepository.loadPlayer(entity.id.value)
+                    if (dbPlayer != null) {
+                        // Update session info
+                        dbPlayer.attachSession(player.sessionId, this)
+                        
+                        // Replace player in game engine
+                        gameEngine.replacePlayer(player, dbPlayer)
+                        
+                        // Send success message
+                        send(Frame.Text("LOGIN_SUCCESS:${entity.id.value}:$username"))
+                        logger.info("Player $username logged in")
+                        
+                        // Send initial game state
+                        dbPlayer.needsPositionUpdate = true // Force position update
+                        dbPlayer.sendUpdates()
+                    } else {
+                        send(Frame.Text("LOGIN_FAILED:Could not load player data"))
+                    }
+                } else {
+                    send(Frame.Text("LOGIN_FAILED:Invalid username or password"))
+                }
+            }
+        } 
+        // Handle registration requests
+        message.startsWith("REGISTER:") -> {
+            val parts = message.substringAfter("REGISTER:").split(":")
+            if (parts.size >= 2) {
+                val username = parts[0]
+                val password = parts[1]
+                
+                // Validate username and password
+                if (username.length < 3 || username.length > 12) {
+                    send(Frame.Text("REGISTER_FAILED:Username must be 3-12 characters"))
+                    return
+                }
+                
+                if (password.length < 5) {
+                    send(Frame.Text("REGISTER_FAILED:Password must be at least 5 characters"))
+                    return
+                }
+                
+                // Check if username exists
+                val existing = playerRepository.findPlayerByUsername(username)
+                if (existing != null) {
+                    send(Frame.Text("REGISTER_FAILED:Username already exists"))
+                } else {
+                    // Create new player
+                    val entity = playerRepository.createPlayer(username, password)
+                    if (entity != null) {
+                        // Set player data
+                        player.id = entity.id.value
+                        player.username = username
+                        player.creationTime = System.currentTimeMillis()
+                        player.lastLoginTime = System.currentTimeMillis()
+                        
+                        // Initialize default skills
+                        for (skillId in 0 until 23) {
+                            player.skills[skillId] = com.example.rsps.game.Skill(id = skillId)
+                        }
+                        
+                        // Save to database
+                        playerRepository.savePlayer(player)
+                        
+                        // Update username mapping in game engine
+                        gameEngine.updateSessionActivity(player.sessionId)
+                        
+                        // Send success message
+                        send(Frame.Text("REGISTER_SUCCESS:${entity.id.value}:$username"))
+                        logger.info("New player registered: $username")
+                        
+                        // Send initial game state
+                        player.needsPositionUpdate = true
+                        player.sendUpdates()
+                    } else {
+                        send(Frame.Text("REGISTER_FAILED:Registration failed"))
+                    }
+                }
+            }
+        }
+        // Handle logout requests
+        message.startsWith("LOGOUT") -> {
+            if (player.id != null) {
+                logger.info("Player ${player.username} logging out")
+                
+                // Save player data
+                playerRepository.savePlayer(player)
+                
+                // Send logout confirmation
+                send(Frame.Text("LOGOUT_SUCCESS"))
+                
+                // Don't remove the player yet - client will disconnect and that will trigger removal
+            }
+        }
+        // Let player handle gameplay messages
+        else -> {
+            player.handleMessage(message)
+            
+            // Update session activity timestamp
+            gameEngine.updateSessionActivity(player.sessionId)
+        }
+    }
 } 

@@ -8,8 +8,22 @@ import {
   Color3,
   StandardMaterial,
   Texture,
-  DirectionalLight
+  DirectionalLight,
+  Animation
 } from "@babylonjs/core";
+
+// Interface for player state
+interface PlayerState {
+  id?: number;
+  username?: string;
+  x: number;
+  y: number;
+  z: number;
+  direction: number;
+  isRunning: boolean;
+  health: number;
+  skills: Map<number, { level: number, experience: number }>;
+}
 
 // Game client class to handle rendering and WebSocket communication
 class GameClient {
@@ -20,6 +34,24 @@ class GameClient {
   private playerMesh: any;
   private connected: boolean = false;
   private connectionStatusElement: HTMLElement | null = null;
+  private loginFormElement: HTMLElement | null = null;
+  private gameUIElement: HTMLElement | null = null;
+  private chatLogElement: HTMLElement | null = null;
+  
+  // Player state
+  private playerState: PlayerState = {
+    x: 0,
+    y: 0,
+    z: 0,
+    direction: 0,
+    isRunning: false,
+    health: 100,
+    skills: new Map()
+  };
+  
+  // Animation properties
+  private movementSpeed: number = 0.15;
+  private moveAnimation: Animation | null = null;
 
   constructor(canvasElement: HTMLCanvasElement) {
     this.canvas = canvasElement;
@@ -28,6 +60,9 @@ class GameClient {
     
     // Get UI elements
     this.connectionStatusElement = document.getElementById('connection-status');
+    this.loginFormElement = document.getElementById('login-form');
+    this.gameUIElement = document.getElementById('game-ui');
+    this.chatLogElement = document.getElementById('chat-log');
     
     // Initialize the 3D scene
     this.setupScene();
@@ -37,6 +72,9 @@ class GameClient {
       this.engine.resize();
     });
     
+    // Set up movement animation
+    this.setupMovementAnimation();
+    
     // Start the render loop
     this.engine.runRenderLoop(() => {
       this.scene.render();
@@ -44,6 +82,9 @@ class GameClient {
     
     // Connect to the WebSocket server
     this.connectToServer();
+    
+    // Set up UI event listeners
+    this.setupUIEventListeners();
   }
 
   // Set up the 3D scene with camera, lights, and basic environment
@@ -84,6 +125,18 @@ class GameClient {
     this.createEnvironmentObjects();
   }
   
+  // Set up movement animation
+  private setupMovementAnimation() {
+    // Create animation for player movement
+    this.moveAnimation = new Animation(
+      "moveAnimation", 
+      "position", 
+      30, 
+      Animation.ANIMATIONTYPE_VECTOR3, 
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+  }
+  
   // Create some basic environment objects to demonstrate scene rendering
   private createEnvironmentObjects() {
     // Create a few trees (simple cones and cylinders)
@@ -116,6 +169,126 @@ class GameClient {
     }
   }
   
+  // Set up event listeners for UI elements
+  private setupUIEventListeners() {
+    // Handle login form submission
+    const loginForm = document.getElementById('login-form') as HTMLFormElement;
+    if (loginForm) {
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = (document.getElementById('username') as HTMLInputElement).value;
+        const password = (document.getElementById('password') as HTMLInputElement).value;
+        this.login(username, password);
+      });
+    }
+    
+    // Handle registration link
+    const registerLink = document.getElementById('register-link');
+    if (registerLink) {
+      registerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showRegistrationForm();
+      });
+    }
+    
+    // Handle registration form submission
+    const registerForm = document.getElementById('register-form') as HTMLFormElement;
+    if (registerForm) {
+      registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = (document.getElementById('reg-username') as HTMLInputElement).value;
+        const password = (document.getElementById('reg-password') as HTMLInputElement).value;
+        this.register(username, password);
+      });
+    }
+    
+    // Handle login link from registration form
+    const loginLink = document.getElementById('login-link');
+    if (loginLink) {
+      loginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showLoginForm();
+      });
+    }
+    
+    // Handle run toggle button
+    const runToggle = document.getElementById('run-toggle');
+    if (runToggle) {
+      runToggle.addEventListener('click', () => {
+        this.toggleRun();
+      });
+    }
+    
+    // Handle click on the game canvas for movement
+    this.canvas.addEventListener('click', (e) => {
+      if (this.playerState.id) {  // Only allow movement if logged in
+        // Convert click to world position (simplified)
+        const x = Math.floor((e.offsetX / this.canvas.width) * 50 - 25);
+        const z = Math.floor((e.offsetY / this.canvas.height) * 50 - 25);
+        
+        // Send movement command
+        this.sendMessage(`MOVE:${x},${z}`);
+      }
+    });
+  }
+  
+  // Show login form and hide registration form
+  private showLoginForm() {
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    
+    if (loginForm && registerForm) {
+      loginForm.style.display = 'block';
+      registerForm.style.display = 'none';
+    }
+  }
+  
+  // Show registration form and hide login form
+  private showRegistrationForm() {
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    
+    if (loginForm && registerForm) {
+      loginForm.style.display = 'none';
+      registerForm.style.display = 'block';
+    }
+  }
+  
+  // Attempt to login with provided credentials
+  private login(username: string, password: string) {
+    if (this.connected && this.socket) {
+      this.socket.send(`LOGIN:${username}:${password}`);
+    } else {
+      this.addChatMessage('System', 'Not connected to server. Please try again later.', 'error');
+    }
+  }
+  
+  // Register a new account
+  private register(username: string, password: string) {
+    if (this.connected && this.socket) {
+      this.socket.send(`REGISTER:${username}:${password}`);
+    } else {
+      this.addChatMessage('System', 'Not connected to server. Please try again later.', 'error');
+    }
+  }
+  
+  // Toggle run mode on/off
+  private toggleRun() {
+    if (this.connected && this.socket) {
+      this.playerState.isRunning = !this.playerState.isRunning;
+      this.socket.send(`RUN:${this.playerState.isRunning}`);
+      
+      // Update movement speed
+      this.movementSpeed = this.playerState.isRunning ? 0.3 : 0.15;
+      
+      // Update UI
+      const runToggle = document.getElementById('run-toggle');
+      if (runToggle) {
+        runToggle.textContent = this.playerState.isRunning ? 'Walk' : 'Run';
+      }
+    }
+  }
+  
   // Connect to the game server via WebSocket
   private connectToServer() {
     try {
@@ -125,9 +298,6 @@ class GameClient {
         console.log("Connected to game server!");
         this.connected = true;
         this.updateConnectionStatus(true);
-        if (this.socket) {
-          this.socket.send("HELLO"); // Initial handshake
-        }
       };
       
       this.socket.onmessage = (event) => {
@@ -172,6 +342,32 @@ class GameClient {
     }
   }
   
+  // Add a message to the chat log
+  private addChatMessage(sender: string, message: string, type: 'system' | 'error' | 'chat' = 'system') {
+    if (this.chatLogElement) {
+      const messageElement = document.createElement('div');
+      messageElement.className = `chat-message ${type}`;
+      messageElement.innerHTML = `<span class="sender">${sender}:</span> ${message}`;
+      this.chatLogElement.appendChild(messageElement);
+      this.chatLogElement.scrollTop = this.chatLogElement.scrollHeight;
+    }
+  }
+  
+  // Show the game UI and hide login forms
+  private showGameUI() {
+    if (this.loginFormElement && this.gameUIElement) {
+      this.loginFormElement.style.display = 'none';
+      document.getElementById('register-form')!.style.display = 'none';
+      this.gameUIElement.style.display = 'block';
+    }
+    
+    // Update player name in UI
+    const playerNameElement = document.getElementById('player-name');
+    if (playerNameElement && this.playerState.username) {
+      playerNameElement.textContent = this.playerState.username;
+    }
+  }
+  
   // Handle messages from the server
   private handleServerMessage(data: string) {
     console.log("Received from server:", data);
@@ -179,20 +375,117 @@ class GameClient {
     if (data.startsWith("CONNECTED:")) {
       const sessionId = data.split(":")[1];
       console.log("Session established with ID:", sessionId);
-      // You could store the session ID for later use
+      this.addChatMessage('System', 'Connected to server. Please login or register.');
+    }
+    else if (data.startsWith("LOGIN_SUCCESS:")) {
+      const parts = data.split(":");
+      if (parts.length >= 3) {
+        this.playerState.id = parseInt(parts[1]);
+        this.playerState.username = parts[2];
+        this.addChatMessage('System', `Welcome back, ${this.playerState.username}!`);
+        this.showGameUI();
+      }
+    }
+    else if (data.startsWith("LOGIN_FAILED:")) {
+      const reason = data.split(":")[1] || "Unknown error";
+      this.addChatMessage('System', `Login failed: ${reason}`, 'error');
+    }
+    else if (data.startsWith("REGISTER_SUCCESS:")) {
+      const parts = data.split(":");
+      if (parts.length >= 3) {
+        this.playerState.id = parseInt(parts[1]);
+        this.playerState.username = parts[2];
+        this.addChatMessage('System', `Welcome to the game, ${this.playerState.username}!`);
+        this.showGameUI();
+      }
+    }
+    else if (data.startsWith("REGISTER_FAILED:")) {
+      const reason = data.split(":")[1] || "Unknown error";
+      this.addChatMessage('System', `Registration failed: ${reason}`, 'error');
     }
     else if (data.startsWith("POSITION:")) {
-      // Handle position updates for players/NPCs
       const parts = data.split(":");
-      if (parts.length >= 4) {
-        const x = parseFloat(parts[1]);
-        const y = parseFloat(parts[2]);
-        const z = parseFloat(parts[3]);
+      if (parts.length >= 5) {
+        const x = parseInt(parts[1]);
+        const y = parseInt(parts[2]);
+        const z = parseInt(parts[3]);
+        const direction = parseInt(parts[4]);
         
-        // Update player position (for now just the local player)
-        if (this.playerMesh) {
-          this.playerMesh.position = new Vector3(x, y, z);
-        }
+        // Store in player state
+        this.playerState.x = x;
+        this.playerState.y = y;
+        this.playerState.z = z;
+        this.playerState.direction = direction;
+        
+        // Update player mesh position with animation
+        this.animatePlayerMovement(x, y, z);
+        
+        // Rotate player based on direction
+        const rotation = (direction * Math.PI / 4);  // 8 directions (0-7)
+        this.playerMesh.rotation.y = rotation;
+      }
+    }
+    else if (data.startsWith("RUN_TOGGLE:")) {
+      const isRunning = data.split(":")[1] === "true";
+      this.playerState.isRunning = isRunning;
+      this.movementSpeed = isRunning ? 0.3 : 0.15;
+      
+      // Update UI
+      const runToggle = document.getElementById('run-toggle');
+      if (runToggle) {
+        runToggle.textContent = isRunning ? 'Walk' : 'Run';
+      }
+    }
+    else if (data.startsWith("LOGOUT_SUCCESS")) {
+      this.playerState = {
+        x: 0,
+        y: 0,
+        z: 0,
+        direction: 0,
+        isRunning: false,
+        health: 100,
+        skills: new Map()
+      };
+      
+      if (this.loginFormElement && this.gameUIElement) {
+        this.loginFormElement.style.display = 'block';
+        this.gameUIElement.style.display = 'none';
+      }
+      
+      this.addChatMessage('System', 'You have been logged out.');
+    }
+  }
+  
+  // Animate player movement to new position
+  private animatePlayerMovement(x: number, y: number, z: number) {
+    // Convert game coordinates to scene coordinates
+    const targetPosition = new Vector3(x, y + 1, z);  // +1 for height offset
+    
+    if (this.moveAnimation && this.playerMesh) {
+      // Stop any running animations
+      this.scene.stopAnimation(this.playerMesh);
+      
+      // Create animation keyframes
+      const keyFrames = [
+        { frame: 0, value: this.playerMesh.position.clone() },
+        { frame: 60, value: targetPosition }
+      ];
+      
+      this.moveAnimation.setKeys(keyFrames);
+      
+      // Start animation
+      this.scene.beginDirectAnimation(
+        this.playerMesh,
+        [this.moveAnimation],
+        0,
+        60,
+        false,
+        this.playerState.isRunning ? 2 : 1 // Speed multiplier
+      );
+    } else {
+      // Fallback if animation not available
+      if (this.playerMesh) {
+        this.playerMesh.position = targetPosition;
       }
     }
   }
@@ -203,6 +496,13 @@ class GameClient {
       this.socket.send(message);
     } else {
       console.warn("Cannot send message, not connected to server");
+    }
+  }
+  
+  // Logout the current player
+  public logout() {
+    if (this.connected && this.socket && this.playerState.id) {
+      this.socket.send("LOGOUT");
     }
   }
   
@@ -236,6 +536,14 @@ window.addEventListener("DOMContentLoaded", () => {
     
     // Create and start the game client
     const client = new GameClient(canvasElement);
+    
+    // Set up logout button
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.addEventListener('click', () => {
+        client.logout();
+      });
+    }
     
     // For debugging, make the client accessible globally
     (window as any).gameClient = client;
