@@ -3,6 +3,7 @@
 <head>
   <title>RuneScape 317 in the Browser</title>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body, html {
       margin: 0;
@@ -10,15 +11,164 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      font-family: 'Arial', sans-serif;
+      background-color: #000;
     }
+    
     #gameCanvas {
       width: 100%;
       height: 100%;
       display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    
+    #loading-screen h1 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      color: #FFD700;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    
+    #loading-bar {
+      width: 300px;
+      height: 20px;
+      background-color: #333;
+      border: 2px solid #555;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    #loading-progress {
+      width: 0%;
+      height: 100%;
+      background-color: #4CAF50;
+      transition: width 0.3s;
+    }
+    
+    #loading-text {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    
+    #game-ui {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      z-index: 10;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      pointer-events: none;
+    }
+    
+    #connection-status {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    
+    .connected {
+      background-color: rgba(0, 128, 0, 0.6);
+      color: white;
+    }
+    
+    .disconnected {
+      background-color: rgba(255, 0, 0, 0.6);
+      color: white;
     }
   </style>
 </head>
 <body>
+  <!-- Loading screen -->
+  <div id="loading-screen">
+    <h1>RuneScape 317</h1>
+    <div id="loading-bar">
+      <div id="loading-progress"></div>
+    </div>
+    <div id="loading-text">Loading game assets...</div>
+  </div>
+  
+  <!-- Main game canvas -->
   <canvas id="gameCanvas"></canvas>
+  
+  <!-- Game UI -->
+  <div id="game-ui">
+    <div>Use WASD to move</div>
+    <div>Click to interact</div>
+  </div>
+  
+  <!-- Connection status indicator -->
+  <div id="connection-status" class="disconnected">Offline</div>
+  
+  <!-- Script to handle loading screen -->
+  <script>
+    // Simulate loading progress
+    let progress = 0;
+    const loadingProgress = document.getElementById('loading-progress');
+    const loadingText = document.getElementById('loading-text');
+    const loadingScreen = document.getElementById('loading-screen');
+    const connectionStatus = document.getElementById('connection-status');
+    
+    const interval = setInterval(() => {
+      progress += Math.random() * 10;
+      if (progress > 100) progress = 100;
+      loadingProgress.style.width = progress + '%';
+      
+      if (progress < 30) {
+        loadingText.textContent = 'Loading game assets...';
+      } else if (progress < 60) {
+        loadingText.textContent = 'Initializing 3D engine...';
+      } else if (progress < 90) {
+        loadingText.textContent = 'Connecting to server...';
+      } else {
+        loadingText.textContent = 'Entering game world...';
+      }
+      
+      if (progress === 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          loadingScreen.style.opacity = '0';
+          loadingScreen.style.transition = 'opacity 1s ease-in-out';
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 1000);
+        }, 500);
+      }
+    }, 200);
+    
+    // Update connection status (will be controlled by actual WebSocket later)
+    window.addEventListener('DOMContentLoaded', () => {
+      // This will be updated by the actual WebSocket connection
+      // Just for visual purposes in this initial implementation
+      setTimeout(() => {
+        connectionStatus.className = 'connected';
+        connectionStatus.textContent = 'Connected';
+      }, 3000);
+    });
+  </script>
 </body>
 </html> 
