@@ -1,0 +1,96 @@
+{
+  "name": "RuneScape 317-Style MMO Project",
+  "description": "Rules for the modern Kotlin + WebGL RuneScape 317-style MMO project",
+  "rules": [
+    {
+      "name": "Project Structure",
+      "patterns": ["**/*"],
+      "rules": [
+        "Maintain clear separation between client and server code",
+        "Follow the established directory structure in the repository",
+        "Client code should be in TypeScript, server code in Kotlin",
+        "Keep configuration files at the root of their respective directories"
+      ]
+    },
+    {
+      "name": "Server Development (Kotlin)",
+      "patterns": ["server/**/*.kt"],
+      "rules": [
+        "Use Kotlin coroutines for asynchronous operations",
+        "Maintain the 600ms tick rate throughout the server code",
+        "All database access should use Exposed ORM",
+        "Follow an entity-component system for game objects",
+        "Document all public-facing APIs and WebSocket message formats"
+      ]
+    },
+    {
+      "name": "Client Development (TypeScript)",
+      "patterns": ["client/**/*.ts"],
+      "rules": [
+        "Use Babylon.js for 3D rendering",
+        "Avoid direct WebGL calls - always use Babylon.js abstractions",
+        "When using animations, always ensure scene.stopAnimation() is called before starting new ones",
+        "Add null checks before accessing mesh properties", 
+        "Add small delays when initializing scene objects after UI state changes",
+        "Never modify material states during animation transitions",
+        "Use TypeScript interfaces for all WebSocket message types"
+      ]
+    },
+    {
+      "name": "WebGL/Babylon.js Best Practices",
+      "patterns": ["client/**/*.ts"],
+      "rules": [
+        "Avoid uniform location issues by not changing materials during animation transitions",
+        "Use Babylon's standard animation system for all object transformations",
+        "Ensure proper initialization order: scene -> camera -> meshes -> animations",
+        "Add appropriate checks for mesh/material existence before manipulation",
+        "Use flags to track rendering state transitions to prevent uniform errors",
+        "When objects first appear, add a small delay (50ms) before applying animations"
+      ]
+    },
+    {
+      "name": "Git Workflow",
+      "patterns": ["**/*"],
+      "rules": [
+        "Create feature branches from main for all new work",
+        "Include descriptive commit messages",
+        "If WebGL errors occur, check animations and material state changes first",
+        "Keep client and server changes in separate commits when possible",
+        "If a rollback is needed, create a new branch from the stable commit"
+      ]
+    },
+    {
+      "name": "Testing Requirements",
+      "patterns": ["**/*.kt", "**/*.ts"],
+      "rules": [
+        "Include unit tests for all server-side game logic",
+        "Test WebSocket communication in both directions",
+        "Verify scene rendering with visual tests",
+        "Test animations thoroughly to prevent WebGL state issues",
+        "Include manual testing steps for UI and rendering components"
+      ]
+    },
+    {
+      "name": "Documentation",
+      "patterns": ["**/*"],
+      "rules": [
+        "Document all WebGL/Babylon.js rendering patterns",
+        "Keep track of known issues and workarounds (especially WebGL warnings)",
+        "Update development-plan.md with progress and changes",
+        "Document state management approaches for the client",
+        "Maintain API documentation for server endpoints"
+      ]
+    },
+    {
+      "name": "Performance Considerations",
+      "patterns": ["client/**/*.ts", "server/**/*.kt"],
+      "rules": [
+        "Optimize client-side rendering for WebGL performance",
+        "Minimize WebSocket message size and frequency",
+        "Use appropriate data structures for game state management",
+        "Profile and optimize hot code paths",
+        "Document performance patterns and anti-patterns"
+      ]
+    }
+  ]
+}
