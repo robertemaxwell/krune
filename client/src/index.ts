@@ -10,6 +10,9 @@ import {
   Texture,
   DirectionalLight
 } from "@babylonjs/core";
+// Import loaders for GLB/GLTF files
+import "@babylonjs/loaders/glTF";
+import { GameAssetManager, AssetType } from "./asset-manager";
 
 // Game client class to handle rendering and WebSocket communication
 class GameClient {
@@ -20,6 +23,10 @@ class GameClient {
   private playerMesh: any;
   private connected: boolean = false;
   private connectionStatusElement: HTMLElement | null = null;
+  private assetManager: GameAssetManager;
+  private loadingProgressElement: HTMLElement | null = null;
+  private loadingTextElement: HTMLElement | null = null;
+  private isDevEnvironment: boolean = true; // Set to true for development mode
 
   constructor(canvasElement: HTMLCanvasElement) {
     this.canvas = canvasElement;
@@ -28,6 +35,32 @@ class GameClient {
     
     // Get UI elements
     this.connectionStatusElement = document.getElementById('connection-status');
+    this.loadingProgressElement = document.getElementById('loading-progress');
+    this.loadingTextElement = document.getElementById('loading-text');
+    
+    // Initialize asset manager
+    this.assetManager = new GameAssetManager(this.scene);
+    
+    // Set progress callback
+    this.assetManager.setProgressCallback((progress) => {
+      if (this.loadingProgressElement) {
+        this.loadingProgressElement.style.width = `${progress}%`;
+      }
+      if (this.loadingTextElement) {
+        if (progress < 30) {
+          this.loadingTextElement.textContent = 'Loading game textures...';
+        } else if (progress < 60) {
+          this.loadingTextElement.textContent = 'Loading 3D models...';
+        } else if (progress < 90) {
+          this.loadingTextElement.textContent = 'Preparing game world...';
+        } else {
+          this.loadingTextElement.textContent = 'Finalizing...';
+        }
+      }
+    });
+    
+    // Register game assets
+    this.registerGameAssets();
     
     // Initialize the 3D scene
     this.setupScene();
@@ -42,8 +75,70 @@ class GameClient {
       this.scene.render();
     });
     
-    // Connect to the WebSocket server
-    this.connectToServer();
+    // Load assets then connect to server
+    this.initializeGame();
+  }
+  
+  // Register all game assets to be loaded
+  private registerGameAssets() {
+    if (this.isDevEnvironment) {
+      // In development environment, register minimal set of assets
+      // and check for their existence to prevent errors
+      
+      // We'll only register grass.png for now as we've created it
+      this.assetManager.addTexture("grass", "assets/textures/grass.png");
+      
+      // Other assets will be added as they're created
+      // For testing texture loading, you might need to copy some placeholder images 
+      // to these locations
+      
+      // For debugging purposes
+      console.log("Development environment - loading minimal assets");
+    } else {
+      // In production, register all required assets
+      
+      // Textures
+      this.assetManager.addTexture("grass", "assets/textures/grass.png");
+      this.assetManager.addTexture("dirt", "assets/textures/dirt.png");
+      this.assetManager.addTexture("water", "assets/textures/water.png");
+      
+      // Models
+      this.assetManager.addModel("player", "assets/models/", "player.glb");
+      this.assetManager.addModel("tree", "assets/models/", "tree.glb");
+      
+      // Sounds
+      this.assetManager.addSound("background", "assets/sounds/ambient.mp3", true);
+      this.assetManager.addSound("footstep", "assets/sounds/footstep.mp3");
+    }
+  }
+  
+  // Initialize game by loading assets then connecting to server
+  private async initializeGame() {
+    try {
+      // Load all registered assets
+      await this.assetManager.loadAssets();
+      
+      // Connect to server once assets are loaded
+      this.connectToServer();
+      
+      // Hide the loading screen
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        loadingScreen.style.transition = 'opacity 1s ease-in-out';
+        setTimeout(() => {
+          if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error loading game assets:", error);
+      if (this.loadingTextElement) {
+        this.loadingTextElement.textContent = 'Error loading game assets. Please refresh.';
+        this.loadingTextElement.style.color = 'red';
+      }
+    }
   }
 
   // Set up the 3D scene with camera, lights, and basic environment
@@ -212,32 +307,21 @@ class GameClient {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.close();
     }
+    this.assetManager.dispose();
   }
 }
 
 // Initialize the game client when the DOM is ready
 window.addEventListener("DOMContentLoaded", () => {
-  // Wait for the loading screen to finish
-  let checkLoading = setInterval(() => {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen && loadingScreen.style.display === 'none') {
-      clearInterval(checkLoading);
-      initGame();
-    }
-  }, 100);
-  
-  // Initialize the game after loading
-  function initGame() {
-    const canvasElement = document.getElementById("gameCanvas");
-    if (!canvasElement || !(canvasElement instanceof HTMLCanvasElement)) {
-      console.error("Canvas element not found or is not a canvas");
-      return;
-    }
-    
-    // Create and start the game client
-    const client = new GameClient(canvasElement);
-    
-    // For debugging, make the client accessible globally
-    (window as any).gameClient = client;
+  const canvasElement = document.getElementById("gameCanvas");
+  if (!canvasElement || !(canvasElement instanceof HTMLCanvasElement)) {
+    console.error("Canvas element not found or is not a canvas");
+    return;
   }
+  
+  // Create and start the game client
+  const client = new GameClient(canvasElement);
+  
+  // For debugging, make the client accessible globally
+  (window as any).gameClient = client;
 }); 

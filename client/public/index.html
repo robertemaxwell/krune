@@ -109,7 +109,7 @@
     <div id="loading-bar">
       <div id="loading-progress"></div>
     </div>
-    <div id="loading-text">Loading game assets...</div>
+    <div id="loading-text">Initializing game...</div>
   </div>
   
   <!-- Main game canvas -->
@@ -124,51 +124,6 @@
   <!-- Connection status indicator -->
   <div id="connection-status" class="disconnected">Offline</div>
   
-  <!-- Script to handle loading screen -->
-  <script>
-    // Simulate loading progress
-    let progress = 0;
-    const loadingProgress = document.getElementById('loading-progress');
-    const loadingText = document.getElementById('loading-text');
-    const loadingScreen = document.getElementById('loading-screen');
-    const connectionStatus = document.getElementById('connection-status');
-    
-    const interval = setInterval(() => {
-      progress += Math.random() * 10;
-      if (progress > 100) progress = 100;
-      loadingProgress.style.width = progress + '%';
-      
-      if (progress < 30) {
-        loadingText.textContent = 'Loading game assets...';
-      } else if (progress < 60) {
-        loadingText.textContent = 'Initializing 3D engine...';
-      } else if (progress < 90) {
-        loadingText.textContent = 'Connecting to server...';
-      } else {
-        loadingText.textContent = 'Entering game world...';
-      }
-      
-      if (progress === 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          loadingScreen.style.opacity = '0';
-          loadingScreen.style.transition = 'opacity 1s ease-in-out';
-          setTimeout(() => {
-            loadingScreen.style.display = 'none';
-          }, 1000);
-        }, 500);
-      }
-    }, 200);
-    
-    // Update connection status (will be controlled by actual WebSocket later)
-    window.addEventListener('DOMContentLoaded', () => {
-      // This will be updated by the actual WebSocket connection
-      // Just for visual purposes in this initial implementation
-      setTimeout(() => {
-        connectionStatus.className = 'connected';
-        connectionStatus.textContent = 'Connected';
-      }, 3000);
-    });
-  </script>
+  <!-- Bundle script will be injected by webpack -->
 </body>
 </html> 
